@@ -30,7 +30,7 @@ feature_cols = None
 # ------------------ Gemini client ------------------
 
 client = genai.Client(
-    api_key="AIzaSyClPe2pKxwoUG6-EgfUGbySnmv9Q1AKN6k"  # <-- put your key
+    api_key="gemini_api_key"  # <-- put your key
 )
 
 # ------------------ Preprocessing ------------------
