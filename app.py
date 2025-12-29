@@ -9,7 +9,10 @@ from sklearn.metrics import classification_report
 import joblib
 import os
 import warnings
-import google.genai as genai  # your SDK
+import google.generativeai as genai
+from dotenv import load_dotenv
+load_dotenv()
+
 
 # ------------------ Flask setup ------------------
 
@@ -29,9 +32,9 @@ feature_cols = None
 
 # ------------------ Gemini client ------------------
 
-client = genai.Client(
-    api_key="AIzaSyClPe2pKxwoUG6-EgfUGbySnmv9Q1AKN6k"  # <-- put your key
-)
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+
 
 # ------------------ Preprocessing ------------------
 
@@ -72,14 +75,9 @@ def preprocess_data(df: pd.DataFrame):
 
 
 def get_fraud_reasons(transaction_data: dict, prediction_prob: float) -> str:
-    """
-    Ask Gemini (via google.genai Client) to explain why this txn is fraud.
-    """
     try:
-        gemini_model = client.models.generate_content  # we'll call client.models.generate_content(...)
         prompt = f"""
-Transaction #{transaction_data.get('transaction_id', 'N/A')} was flagged as FRAUD
-with probability {prediction_prob:.1%}.
+Transaction was flagged as FRAUD with probability {prediction_prob:.1%}.
 
 Details:
 - Amount: ${transaction_data.get('amount', 0):,.2f}
@@ -91,28 +89,21 @@ Details:
 - Transactions last 30d: {transaction_data.get('transaction_count_last_30d', 0)}
 - Avg transaction amount: ${transaction_data.get('avg_transaction_amount', 0):,.2f}
 
-Explain in bullet points why this looks fraudulent.
-and also keep it mininum and in professional language.
-Use concise, clear language suitable for a fraud analyst.
+Explain in 3–4 professional bullet points why this looks fraudulent.
 """
-        # according to the new google.genai SDK, you call client.models.generate_content
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt
-        )
-        # response.result.output_text / response.text depending on SDK version.
-        explanation = getattr(response, "text", None) or str(response)
-        return explanation.strip()
+
+        response = gemini_model.generate_content(prompt)
+        return response.text.strip()
 
     except Exception as e:
-        # fallback explanation
         return (
-            " FRAUD REASONS (fallback):\n"
-            f"• High amount: ${transaction_data.get('amount', 0):,.2f}\n"
-            f"• Suspicious time: {transaction_data.get('time_of_day', 12)}:00\n"
-            f"• New or risky account age: {transaction_data.get('user_account_age_days', 365)} days\n"
+            "FRAUD REASONS (fallback):\n"
+            f"• Unusual transaction amount\n"
+            f"• Suspicious timing or frequency\n"
+            f"• Account risk indicators\n"
             f"(Gemini error: {e})"
         )
+
 
 
 
@@ -301,11 +292,8 @@ def batch_download():
 
 @app.route('/api/list-models', methods=['GET'])
 def list_models():
-    try:
-        res = client.models.list()
-        return jsonify([m.name for m in res])
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    return jsonify(["gemini-pro"])
+
 
 
 
