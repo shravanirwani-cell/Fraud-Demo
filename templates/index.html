@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title> Fraud Detection Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      color: white;
+      margin-bottom: 30px;
+      font-size: 2.5em;
+    }
+
+    .card {
+      background: white;
+      border-radius: 15px;
+      padding: 25px;
+      margin: 20px 0;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .input-group {
+      display: flex;
+      gap: 15px;
+      margin: 15px 0;
+      flex-wrap: wrap;
+    }
+
+    input {
+      padding: 12px 15px;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      font-size: 16px;
+      flex: 1;
+      min-width: 120px;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    button {
+      padding: 12px 25px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    button:hover {
+      background: #5a67d8;
+      transform: translateY(-2px);
+    }
+
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .result {
+      margin-top: 20px;
+      padding: 20px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    .fraud {
+      background: #fee;
+      border: 3px solid #f87171;
+      color: #dc2626;
+    }
+
+    .legit {
+      background: #dbeafe;
+      border: 3px solid #3b82f6;
+      color: #1e40af;
+    }
+
+    .explanation {
+      background: #f8fafc;
+      border-left: 5px solid #10b981;
+      padding: 15px;
+      margin-top: 15px;
+      border-radius: 0 8px 8px 0;
+      white-space: pre-line;
+    }
+
+    .status {
+      text-align: center;
+      padding: 10px;
+      border-radius: 8px;
+      margin: 10px 0;
+    }
+
+    .success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1> AI Fraud Detection System</h1>
+
+    <div class="card">
+      <h3> System Status</h3>
+      <button onclick="checkHealth()"> Check Backend</button>
+      <div id="status"></div>
+    </div>
+
+    <div class="card">
+      <h3> Train Model (Generate + Train)</h3>
+      <button onclick="trainModel()"> Train ML Model</button>
+      <div id="trainResult"></div>
+    </div>
+
+    <div class="card">
+      <h3> Train From CSV (Uploaded Dataset)</h3>
+      <input type="file" id="csvFile" accept=".csv" style="margin: 10px 0;">
+      <div class="input-group">
+        <button onclick="trainFromCSV()"> Train from CSV</button>
+        <button onclick="analyzeBatch()"> Analyze CSV (Gemini)</button>
+      </div>
+      <div id="batchResult"></div>
+    </div>
+
+    <div class="card">
+      <h3> Detect Fraud (Single Transaction)</h3>
+      <div class="input-group">
+        <input id="amount" type="number" placeholder="Amount ($)" value="25000">
+        <input id="time" type="number" min="0" max="23" placeholder="Hour (0-23)" value="23">
+        <input id="age" type="number" min="18" max="80" placeholder="User Age" value="22">
+      </div>
+      <div class="input-group">
+        <input id="accountAge" type="number" placeholder="Account Age (days)" value="15">
+        <input id="txnCount" type="number" placeholder="Recent Txns (30d)" value="2">
+        <input id="avgAmount" type="number" placeholder="Avg Amount ($)" value="12500">
+      </div>
+      <button onclick="predictFraud()"> Analyze Transaction</button>
+      <div id="predictResult"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:5000/api';
+
+    async function checkHealth() {
+      try {
+        const res = await fetch(`${API_BASE}/health`);
+        const data = await res.json();
+        document.getElementById('status').innerHTML =
+          `<div class="status ${data.model_ready ? 'success' : 'error'}">
+             ${data.model_ready ? ' Backend & model ready' : ' Backend up, train model first'}
+           </div>`;
+      } catch (e) {
+        document.getElementById('status').innerHTML =
+          `<div class="status error"> Cannot reach backend</div>`;
+      }
+    }
+
+    async function trainmodel() {
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = 'Training...';
+      try {
+        const res = await fetch(`${API_BASE}/train`, { method: 'POST' });
+        const data = await res.json();
+        document.getElementById('trainResult').innerHTML =
+          `<div class="status success">
+              Model trained with ${data.features} features, fraud rate ${data.fraud_rate}
+           </div>`;
+      } catch (e) {
+        document.getElementById('trainResult').innerHTML =
+          `<div class="status error"> ${e.message}</div>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = ' Train ML Model';
+      }
+    }
+
+    async function trainFromCSV() {
+      const fileInput = document.getElementById('csvFile');
+      if (!fileInput.files[0]) {
+        alert('Select a CSV file first');
+        return;
+      }
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+
+      try {
+        const res = await fetch(`${API_BASE}/train-from-csv`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          alert(` Trained on ${data.dataset_size} rows, accuracy ${data.accuracy}`);
+        } else {
+          alert(' Training failed: ' + (data.error || 'Unknown error'));
+        }
+      } catch (e) {
+        alert(' Request failed: ' + e.message);
+      }
+    }
+
+    async function analyzeBatch() {
+      const fileInput = document.getElementById('csvFile');
+      const resultDiv = document.getElementById('batchResult');
+      if (!fileInput.files[0]) {
+        resultDiv.innerHTML = '<div class="status error">❌ Select CSV file</div>';
+        return;
+      }
+      resultDiv.innerHTML = '<div class="status">🔄 AI Analyzing + Gemini...</div>';
+
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+
+      try {
+        const res = await fetch(`${API_BASE}/batch-analyze`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+
+        let fraudList = '';
+        data.fraud_details.forEach((fraud, i) => {
+          fraudList += `
+            <div style="border:1px solid #fee;padding:15px;margin:10px 0;border-radius:8px;background:#fef2f2;">
+              <h4> Fraud #${i + 1} (ID: ${fraud.transaction_id})</h4>
+              <p><strong>Amount:</strong> $${fraud.amount} |
+                 <strong>Prob:</strong> ${(fraud.fraud_probability * 100).toFixed(1)}% |
+                 <strong>Risk:</strong> ${fraud.risk_score}</p>
+              <div style="background:#f0f9ff;padding:10px;border-radius:5px;margin-top:10px;">
+                <strong>🤖 Gemini AI Explanation:</strong><br>
+                ${fraud.gemini_explanation}
+              </div>
+            </div>`;
+        });
+
+        resultDiv.innerHTML = `
+          <div class="status success" style="font-size:1.1em;">
+             ${data.total_transactions} txns |
+             ${data.total_fraud} frauds |
+             ${data.fraud_rate} fraud rate
+          </div>
+          ${fraudList}
+          <div class="explanation">${data.summary}</div>`;
+      } catch (e) {
+        resultDiv.innerHTML = `<div class="status error"> ${e.message}</div>`;
+      }
+    }
+
+    async function predictFraud() {
+      const data = {
+        amount: parseFloat(document.getElementById('amount').value),
+        time_of_day: parseInt(document.getElementById('time').value),
+        user_age: parseInt(document.getElementById('age').value),
+        user_account_age_days: parseInt(document.getElementById('accountAge').value),
+        transaction_count_last_30d: parseInt(document.getElementById('txnCount').value),
+        avg_transaction_amount: parseFloat(document.getElementById('avgAmount').value),
+        day_of_week: 5,
+        location_lat: 19.07,
+        location_long: 72.87
+      };
+      const resultDiv = document.getElementById('predictResult');
+      resultDiv.innerHTML = '<div class="status"> Analyzing...</div>';
+
+      try {
+        const res = await fetch(`${API_BASE}/predict`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        const isFraud = result.is_fraud;
+        const cls = isFraud ? 'fraud' : 'legit';
+        const title = isFraud ? ' FRAUD ALERT' : ' LEGITIMATE';
+        resultDiv.innerHTML = `
+          <div class="result ${cls}">
+            <h3>${title}</h3>
+            <p><strong>Probability:</strong> ${(result.fraud_probability * 100).toFixed(1)}%</p>
+            <p><strong>Risk:</strong> ${result.risk_score}</p>
+            <div class="explanation">${result.explanation}</div>
+          </div>`;
+      } catch (e) {
+        resultDiv.innerHTML = `<div class="status error"> ${e.message}</div>`;
+      }
+    }
+
+    window.onload = checkHealth;
+  </script>
+</body>
+
+</html>
