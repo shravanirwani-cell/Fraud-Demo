@@ -9,9 +9,11 @@ from sklearn.metrics import classification_report
 import joblib
 import os
 import warnings
-import google.generativeai as genai
+from flask import render_template
 from dotenv import load_dotenv
 load_dotenv()
+
+
 
 
 # ------------------ Flask setup ------------------
@@ -19,6 +21,56 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 warnings.filterwarnings('ignore')
+
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+@app.route('/api/train', methods=['POST'])
+def train_model():
+    try:
+        # Use existing CSV in repo
+        df = pd.read_csv("transactions_1000.csv")
+
+        X, y, feat_cols = preprocess_data(df)
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42, stratify=y
+        )
+
+        scaler_local = StandardScaler()
+        X_train_scaled = scaler_local.fit_transform(X_train)
+        X_test_scaled = scaler_local.transform(X_test)
+
+        clf = RandomForestClassifier(
+            n_estimators=150,
+            random_state=42,
+            class_weight='balanced'
+        )
+        clf.fit(X_train_scaled, y_train)
+
+        report = classification_report(
+            y_test, clf.predict(X_test_scaled), output_dict=True
+        )
+
+        joblib.dump(clf, MODEL_PATH)
+        joblib.dump(scaler_local, SCALER_PATH)
+        joblib.dump(feat_cols, FEATURE_COLS_PATH)
+
+        global model, scaler, feature_cols
+        model, scaler, feature_cols = clf, scaler_local, feat_cols
+
+        return jsonify({
+            "status": "success",
+            "features": len(feat_cols),
+            "fraud_rate": f"{float(df['is_fraud'].mean())*100:.2f}%",
+            "accuracy": report["accuracy"]
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 # ------------------ Paths & globals ------------------
 
@@ -29,11 +81,6 @@ FEATURE_COLS_PATH = 'feature_cols.pkl'
 model = None
 scaler = None
 feature_cols = None
-
-# ------------------ Gemini client ------------------
-
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-gemini_model = genai.GenerativeModel("gemini-1.5-flash")
 
 
 # ------------------ Preprocessing ------------------
@@ -74,35 +121,28 @@ def preprocess_data(df: pd.DataFrame):
 
 
 
-def get_fraud_reasons(transaction_data: dict, prediction_prob: float) -> str:
-    try:
-        prompt = f"""
-Transaction was flagged as FRAUD with probability {prediction_prob:.1%}.
+def get_fraud_reasons(transaction_data: dict, prob: float) -> str:
+    reasons = []
 
-Details:
-- Amount: ${transaction_data.get('amount', 0):,.2f}
-- Time of day: {transaction_data.get('time_of_day', 12)}:00
-- Merchant: {transaction_data.get('merchant', 'Unknown')}
-- Category: {transaction_data.get('category', 'Unknown')}
-- User age: {transaction_data.get('user_age', 30)}
-- Account age: {transaction_data.get('user_account_age_days', 365)} days
-- Transactions last 30d: {transaction_data.get('transaction_count_last_30d', 0)}
-- Avg transaction amount: ${transaction_data.get('avg_transaction_amount', 0):,.2f}
+    amt = transaction_data.get("amount", 0)
+    avg_amt = transaction_data.get("avg_transaction_amount", 1)
+    acct_age = transaction_data.get("user_account_age_days", 0)
+    txn_count = transaction_data.get("transaction_count_last_30d", 0)
 
-Explain in 3–4 professional bullet points why this looks fraudulent.
-"""
+    if amt > 3 * avg_amt:
+        reasons.append("Transaction amount is significantly higher than user's usual spending.")
 
-        response = gemini_model.generate_content(prompt)
-        return response.text.strip()
+    if acct_age < 30:
+        reasons.append("User account is relatively new.")
 
-    except Exception as e:
-        return (
-            "FRAUD REASONS (fallback):\n"
-            f"• Unusual transaction amount\n"
-            f"• Suspicious timing or frequency\n"
-            f"• Account risk indicators\n"
-            f"(Gemini error: {e})"
-        )
+    if txn_count > 30:
+        reasons.append("High transaction frequency observed in recent period.")
+
+    if not reasons:
+        reasons.append("Transaction deviates from typical behavioral patterns.")
+
+    return "\n".join(f"• {r}" for r in reasons)
+
 
 
 
@@ -290,16 +330,10 @@ def batch_download():
 
     return send_file(filename, as_attachment=True, download_name='fraud_report.csv')
 
-@app.route('/api/list-models', methods=['GET'])
-def list_models():
-    return jsonify(["gemini-pro"])
-
-
-
 
 # ------------------ main ------------------
 
 if __name__ == '__main__':
-    print("🚀 Fraud Detection API with CSV training + Gemini explanations")
+    print("🚀 Fraud Detection API (ML-only, no external AI)")
     app.run(debug=True, host='0.0.0.0', port=5000)
 
