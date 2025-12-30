@@ -1,14 +1,9 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-  <title> Fraud Detection Dashboard</title>
+  <title>Fraud Detection Dashboard</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -17,10 +12,7 @@
       padding: 20px;
     }
 
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-    }
+    .container { max-width: 900px; margin: 0 auto; }
 
     h1 {
       text-align: center;
@@ -34,7 +26,7 @@
       border-radius: 15px;
       padding: 25px;
       margin: 20px 0;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
     }
 
     .input-group {
@@ -53,11 +45,6 @@
       min-width: 120px;
     }
 
-    input:focus {
-      outline: none;
-      border-color: #667eea;
-    }
-
     button {
       padding: 12px 25px;
       background: #667eea;
@@ -67,270 +54,182 @@
       cursor: pointer;
       font-size: 16px;
       font-weight: 600;
-      transition: all 0.3s;
     }
 
-    button:hover {
-      background: #5a67d8;
-      transform: translateY(-2px);
-    }
+    button:disabled { background: #ccc; cursor: not-allowed; }
 
-    button:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .result {
-      margin-top: 20px;
-      padding: 20px;
-      border-radius: 10px;
+    .status {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 8px;
+      text-align: center;
       font-weight: 600;
     }
+
+    .success { background: #d1fae5; color: #065f46; }
+    .error { background: #fee2e2; color: #991b1b; }
 
     .fraud {
       background: #fee;
       border: 3px solid #f87171;
       color: #dc2626;
+      padding: 15px;
+      border-radius: 10px;
     }
 
     .legit {
       background: #dbeafe;
       border: 3px solid #3b82f6;
       color: #1e40af;
+      padding: 15px;
+      border-radius: 10px;
     }
 
     .explanation {
       background: #f8fafc;
       border-left: 5px solid #10b981;
-      padding: 15px;
-      margin-top: 15px;
-      border-radius: 0 8px 8px 0;
-      white-space: pre-line;
-    }
-
-    .status {
-      text-align: center;
       padding: 10px;
-      border-radius: 8px;
-      margin: 10px 0;
-    }
-
-    .success {
-      background: #d1fae5;
-      color: #065f46;
-    }
-
-    .error {
-      background: #fee2e2;
-      color: #991b1b;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-    }
-
-    @media (max-width: 768px) {
-      .grid {
-        grid-template-columns: 1fr;
-      }
+      margin-top: 10px;
+      white-space: pre-line;
     }
   </style>
 </head>
 
 <body>
   <div class="container">
-    <h1> AI Fraud Detection System</h1>
+    <h1>AI Fraud Detection System</h1>
 
     <div class="card">
-      <h3> System Status</h3>
-      <button onclick="checkHealth()"> Check Backend</button>
+      <h3>System Status</h3>
+      <button onclick="checkHealth()">Check Backend</button>
       <div id="status"></div>
     </div>
 
     <div class="card">
-      <h3> Train Model (Generate + Train)</h3>
-      <button onclick="trainModel()"> Train ML Model</button>
+      <h3>Train Model (Default Dataset)</h3>
+      <button onclick="trainModel()">Train ML Model</button>
       <div id="trainResult"></div>
     </div>
 
     <div class="card">
-      <h3> Train From CSV (Uploaded Dataset)</h3>
-      <input type="file" id="csvFile" accept=".csv" style="margin: 10px 0;">
+      <h3>Train / Analyze CSV</h3>
+      <input type="file" id="csvFile" accept=".csv">
       <div class="input-group">
-        <button onclick="trainFromCSV()"> Train from CSV</button>
-        <button onclick="analyzeBatch()"> Analyze CSV (Gemini)</button>
+        <button onclick="trainFromCSV()">Train from CSV</button>
+        <button onclick="analyzeBatch()">Analyze CSV</button>
       </div>
       <div id="batchResult"></div>
     </div>
 
     <div class="card">
-      <h3> Detect Fraud (Single Transaction)</h3>
+      <h3>Detect Fraud (Single Transaction)</h3>
       <div class="input-group">
-        <input id="amount" type="number" placeholder="Amount ($)" value="25000">
-        <input id="time" type="number" min="0" max="23" placeholder="Hour (0-23)" value="23">
-        <input id="age" type="number" min="18" max="80" placeholder="User Age" value="22">
+        <input id="amount" type="number" placeholder="Amount" value="25000">
+        <input id="time" type="number" placeholder="Hour (0–23)" value="23">
+        <input id="age" type="number" placeholder="User Age" value="22">
       </div>
       <div class="input-group">
         <input id="accountAge" type="number" placeholder="Account Age (days)" value="15">
-        <input id="txnCount" type="number" placeholder="Recent Txns (30d)" value="2">
-        <input id="avgAmount" type="number" placeholder="Avg Amount ($)" value="12500">
+        <input id="txnCount" type="number" placeholder="Txn count (30d)" value="2">
+        <input id="avgAmount" type="number" placeholder="Avg amount" value="12500">
       </div>
-      <button onclick="predictFraud()"> Analyze Transaction</button>
+      <button onclick="predictFraud()">Analyze Transaction</button>
       <div id="predictResult"></div>
     </div>
   </div>
 
-  <script>
-    
+<script>
+async function checkHealth() {
+  try {
+    const res = await fetch("/api/health");
+    const data = await res.json();
+    document.getElementById("status").innerHTML =
+      `<div class="status ${data.model_ready ? "success" : "error"}">
+        ${data.model_ready ? "Backend & model ready" : "Backend up, train model"}
+       </div>`;
+  } catch (e) {
+    document.getElementById("status").innerHTML =
+      `<div class="status error">Cannot reach backend</div>`;
+  }
+}
 
-    async function checkHealth() {
-      try {
-        const res = await fetch("/api/predict");
-        const data = await res.json();
-        document.getElementById('status').innerHTML =
-          `<div class="status ${data.model_ready ? 'success' : 'error'}">
-             ${data.model_ready ? ' Backend & model ready' : ' Backend up, train model first'}
-           </div>`;
-      } catch (e) {
-        document.getElementById('status').innerHTML =
-          `<div class="status error"> Cannot reach backend</div>`;
-      }
-    }
+async function trainModel() {
+  const btn = event.target;
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/train", { method: "POST" });
+    const data = await res.json();
+    document.getElementById("trainResult").innerHTML =
+      `<div class="status success">
+        Trained with ${data.features} features | Accuracy: ${data.accuracy}
+       </div>`;
+  } catch (e) {
+    document.getElementById("trainResult").innerHTML =
+      `<div class="status error">${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
 
-    async function trainmodel() {
-      const btn = event.target;
-      btn.disabled = true;
-      btn.textContent = 'Training...';
-      try {
-        const res = await fetch("/api/train", { method: "POST" });
-        const data = await res.json();
-        document.getElementById('trainResult').innerHTML =
-          `<div class="status success">
-              Model trained with ${data.features} features, fraud rate ${data.fraud_rate}
-           </div>`;
-      } catch (e) {
-        document.getElementById('trainResult').innerHTML =
-          `<div class="status error"> ${e.message}</div>`;
-      } finally {
-        btn.disabled = false;
-        btn.textContent = ' Train ML Model';
-      }
-    }
+async function trainFromCSV() {
+  const file = document.getElementById("csvFile").files[0];
+  if (!file) return alert("Select CSV file");
 
-    async function trainFromCSV() {
-      const fileInput = document.getElementById('csvFile');
-      if (!fileInput.files[0]) {
-        alert('Select a CSV file first');
-        return;
-      }
-      const formData = new FormData();
-      formData.append('file', fileInput.files[0]);
+  const fd = new FormData();
+  fd.append("file", file);
 
-      try {
-        const res = await fetch("/api/train-from-csv", {
-          method: 'POST',
-          body: formData
-        });
-        const data = await res.json();
-        if (data.status === 'success') {
-          alert(` Trained on ${data.dataset_size} rows, accuracy ${data.accuracy}`);
-        } else {
-          alert(' Training failed: ' + (data.error || 'Unknown error'));
-        }
-      } catch (e) {
-        alert(' Request failed: ' + e.message);
-      }
-    }
+  const res = await fetch("/api/train-from-csv", { method: "POST", body: fd });
+  const data = await res.json();
+  alert(data.status === "success"
+    ? `Trained on ${data.dataset_size} rows`
+    : data.error);
+}
 
-    async function analyzeBatch() {
-      const fileInput = document.getElementById('csvFile');
-      const resultDiv = document.getElementById('batchResult');
-      if (!fileInput.files[0]) {
-        resultDiv.innerHTML = '<div class="status error">❌ Select CSV file</div>';
-        return;
-      }
-      resultDiv.innerHTML = '<div class="status">🔄 AI Analyzing + Gemini...</div>';
+async function analyzeBatch() {
+  const file = document.getElementById("csvFile").files[0];
+  if (!file) return;
 
-      const formData = new FormData();
-      formData.append('file', fileInput.files[0]);
+  const fd = new FormData();
+  fd.append("file", file);
 
-      try {
-        const res = await fetch("/api/batch-analyze", {
-          method: 'POST',
-          body: formData
-        });
-        const data = await res.json();
+  const res = await fetch("/api/batch-analyze", { method: "POST", body: fd });
+  const data = await res.json();
 
-        let fraudList = '';
-        data.fraud_details.forEach((fraud, i) => {
-          fraudList += `
-            <div style="border:1px solid #fee;padding:15px;margin:10px 0;border-radius:8px;background:#fef2f2;">
-              <h4> Fraud #${i + 1} (ID: ${fraud.transaction_id})</h4>
-              <p><strong>Amount:</strong> $${fraud.amount} |
-                 <strong>Prob:</strong> ${(fraud.fraud_probability * 100).toFixed(1)}% |
-                 <strong>Risk:</strong> ${fraud.risk_score}</p>
-              <div style="background:#f0f9ff;padding:10px;border-radius:5px;margin-top:10px;">
-                <strong>🤖 Gemini AI Explanation:</strong><br>
-                ${fraud.gemini_explanation}
-              </div>
-            </div>`;
-        });
+  document.getElementById("batchResult").innerHTML =
+    `<div class="status success">
+      ${data.total_fraud} frauds detected out of ${data.total_transactions}
+     </div>`;
+}
 
-        resultDiv.innerHTML = `
-          <div class="status success" style="font-size:1.1em;">
-             ${data.total_transactions} txns |
-             ${data.total_fraud} frauds |
-             ${data.fraud_rate} fraud rate
-          </div>
-          ${fraudList}
-          <div class="explanation">${data.summary}</div>`;
-      } catch (e) {
-        resultDiv.innerHTML = `<div class="status error"> ${e.message}</div>`;
-      }
-    }
+async function predictFraud() {
+  const payload = {
+    amount: +amount.value,
+    time_of_day: +time.value,
+    user_age: +age.value,
+    user_account_age_days: +accountAge.value,
+    transaction_count_last_30d: +txnCount.value,
+    avg_transaction_amount: +avgAmount.value,
+    day_of_week: 5,
+    location_lat: 19.07,
+    location_long: 72.87
+  };
 
-    async function predictFraud() {
-      const data = {
-        amount: parseFloat(document.getElementById('amount').value),
-        time_of_day: parseInt(document.getElementById('time').value),
-        user_age: parseInt(document.getElementById('age').value),
-        user_account_age_days: parseInt(document.getElementById('accountAge').value),
-        transaction_count_last_30d: parseInt(document.getElementById('txnCount').value),
-        avg_transaction_amount: parseFloat(document.getElementById('avgAmount').value),
-        day_of_week: 5,
-        location_lat: 19.07,
-        location_long: 72.87
-      };
-      const resultDiv = document.getElementById('predictResult');
-      resultDiv.innerHTML = '<div class="status"> Analyzing...</div>';
+  const res = await fetch("/api/predict", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
 
-      try {
-        const res = await fetch("/api/predict", {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-        const result = await res.json();
-        const isFraud = result.is_fraud;
-        const cls = isFraud ? 'fraud' : 'legit';
-        const title = isFraud ? ' FRAUD ALERT' : ' LEGITIMATE';
-        resultDiv.innerHTML = `
-          <div class="result ${cls}">
-            <h3>${title}</h3>
-            <p><strong>Probability:</strong> ${(result.fraud_probability * 100).toFixed(1)}%</p>
-            <p><strong>Risk:</strong> ${result.risk_score}</p>
-            <div class="explanation">${result.explanation}</div>
-          </div>`;
-      } catch (e) {
-        resultDiv.innerHTML = `<div class="status error"> ${e.message}</div>`;
-      }
-    }
+  const r = await res.json();
+  document.getElementById("predictResult").innerHTML =
+    `<div class="${r.is_fraud ? "fraud" : "legit"}">
+      <h3>${r.is_fraud ? "FRAUD" : "LEGITIMATE"}</h3>
+      <p>Probability: ${(r.fraud_probability * 100).toFixed(1)}%</p>
+      <div class="explanation">${r.explanation}</div>
+     </div>`;
+}
 
-    window.onload = checkHealth;
-  </script>
+window.onload = checkHealth;
+</script>
 </body>
-
 </html>
