@@ -184,11 +184,11 @@
   </div>
 
   <script>
-    const API_BASE = 'http://localhost:5000/api';
+    
 
     async function checkHealth() {
       try {
-        const res = await fetch(`${API_BASE}/health`);
+        const res = await fetch("/api/predict");
         const data = await res.json();
         document.getElementById('status').innerHTML =
           `<div class="status ${data.model_ready ? 'success' : 'error'}">
@@ -205,7 +205,7 @@
       btn.disabled = true;
       btn.textContent = 'Training...';
       try {
-        const res = await fetch(`${API_BASE}/train`, { method: 'POST' });
+        const res = await fetch("/api/train", { method: "POST" });
         const data = await res.json();
         document.getElementById('trainResult').innerHTML =
           `<div class="status success">
@@ -230,7 +230,7 @@
       formData.append('file', fileInput.files[0]);
 
       try {
-        const res = await fetch(`${API_BASE}/train-from-csv`, {
+        const res = await fetch("/api/train-from-csv", {
           method: 'POST',
           body: formData
         });
@@ -258,7 +258,7 @@
       formData.append('file', fileInput.files[0]);
 
       try {
-        const res = await fetch(`${API_BASE}/batch-analyze`, {
+        const res = await fetch("/api/batch-analyze", {
           method: 'POST',
           body: formData
         });
@@ -308,7 +308,7 @@
       resultDiv.innerHTML = '<div class="status"> Analyzing...</div>';
 
       try {
-        const res = await fetch(`${API_BASE}/predict`, {
+        const res = await fetch("/api/predict", {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
